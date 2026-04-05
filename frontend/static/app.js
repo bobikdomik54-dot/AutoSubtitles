@@ -140,6 +140,16 @@ function drawPreview(t) {
   }
   if (!$('punct').checked) previewText = previewText.replace(/[.,!?;:]/g, '');
   v.textContent = previewText; v.style.opacity = '1';
+  let txt = cue.text;
+  if (state.style.animation === 'highlight-word' && cue.words?.length) {
+    const w = cue.words.find(x => t >= x.start && t <= x.end);
+    if (w) txt = cue.text.replace(w.text, `【${w.text}】`);
+  }
+  if (!cue) { v.style.opacity = '0'; v.textContent = ''; return; }
+  let txt = cue.text;
+  if (state.style.animation === 'highlight-word' && cue.words?.length) { const w = cue.words.find(x => t >= x.start && t <= x.end); if (w) txt = cue.text.replace(w.text, `【${w.text}】`); }
+  if (!$('punct').checked) txt = txt.replace(/[.,!?;:]/g, '');
+  v.textContent = txt; v.style.opacity = '1';
   v.style.transition = 'all .15s ease'; v.style.scale = '1';
   if (state.style.animation === 'fade') v.style.opacity = '0.9';
   if (state.style.animation === 'pop') v.style.scale = '1.06';
