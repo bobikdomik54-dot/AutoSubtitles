@@ -1,3 +1,6 @@
+(() => {
+'use strict';
+
 const state = { file: null, fileId: null, words: [], segments: [], cues: [], style: {}, preset: 'Classic' };
 const $ = (id) => document.getElementById(id);
 
@@ -130,6 +133,13 @@ function drawPreview(t) {
     v.style.opacity = '0'; v.textContent = '';
     return;
   }
+  let previewText = cue.text;
+  if (state.style.animation === 'highlight-word' && cue.words?.length) {
+    const w = cue.words.find(x => t >= x.start && t <= x.end);
+    if (w) previewText = cue.text.replace(w.text, `【${w.text}】`);
+  }
+  if (!$('punct').checked) previewText = previewText.replace(/[.,!?;:]/g, '');
+  v.textContent = previewText; v.style.opacity = '1';
   let txt = cue.text;
   if (state.style.animation === 'highlight-word' && cue.words?.length) {
     const w = cue.words.find(x => t >= x.start && t <= x.end);
@@ -279,3 +289,5 @@ document.querySelectorAll('.chip').forEach(ch => ch.onclick = () => setPreset(ch
 
 setPreset('Classic');
 applyStyle();
+
+})();
