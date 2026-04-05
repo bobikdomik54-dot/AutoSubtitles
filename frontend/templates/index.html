@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AutoSubtitles</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Bebas+Neue&family=Bangers&family=Pacifico&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand"><div class="logo">A</div>AutoSubtitles</div>
+    <div class="top-actions">
+      <button id="newVideoBtn" class="btn primary">New Video</button>
+      <button id="exportBtnTop" class="btn">Export Video</button>
+      <select id="exportMode" class="select"><option value="backend">Mode A: ffmpeg</option><option value="frontend">Mode B: MediaRecorder</option></select>
+    </div>
+  </div>
+
+  <div class="workspace">
+    <div class="left">
+      <div class="canvasTop row">
+        <select id="sourceSelect" class="select"><option>Original</option></select>
+        <button id="uploadBtn" class="btn ghost">Upload</button>
+        <button id="transcribeBtn" class="btn primary">Transcribe</button>
+        <button id="applyStyleBtn" class="btn">Apply Style</button>
+        <input id="lang" class="select" placeholder="language: ru/en/auto" style="min-width:170px">
+      </div>
+      <div class="playerWrap">
+        <video id="video" controls></video>
+        <div id="overlay"><div id="subtitlePreview"></div></div>
+      </div>
+      <div class="timeline">
+        <div class="row small"><span id="status">Ready</span><span id="fileInfo"></span><span id="cueCount"></span></div>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="card">
+        <div id="drop" class="dropzone">Drop video here or click to choose</div>
+        <input id="fileInput" type="file" accept="video/*">
+      </div>
+
+      <div class="card">
+        <h3>Styles</h3>
+        <div class="chips" id="presetChips">
+          <div class="chip active" data-preset="Classic">Classic</div>
+          <div class="chip" data-preset="Highlight">Highlight</div>
+          <div class="chip" data-preset="Beast-like">Beast</div>
+          <div class="chip" data-preset="Drop In">Drop In</div>
+          <div class="chip" data-preset="Rotate">Rotate</div>
+          <div class="chip" data-preset="Minimal">Minimal</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="h3-small">Typography</h3>
+        <div class="grid4">
+          <div><label>Size</label><input id="fontSize" type="number" value="61"></div>
+          <div><label>Bold</label><select id="bold" class="select"><option value="1">On</option><option value="0">Off</option></select></div>
+          <div><label>Italic</label><select id="italic" class="select"><option value="0">Off</option><option value="1">On</option></select></div>
+          <div><label>Line</label><input id="lineHeight" type="number" step="0.1" value="1.2"></div>
+        </div>
+        <div><label>Font</label><select id="font" class="select"><option>Montserrat</option><option>Bebas Neue</option><option>Bangers</option><option>Komika Axis</option><option>Pacifico</option><option>Playfair Display</option></select></div>
+        <div class="grid3">
+          <div><label>Text</label><input id="color" type="color" value="#ffffff"></div>
+          <div><label>Outline</label><input id="outlineWidth" type="number" value="3"></div>
+          <div><label>Shadow</label><input id="shadow" type="number" value="2"></div>
+        </div>
+        <div class="toggle"><span>Show punctuation</span><input id="punct" type="checkbox" checked></div>
+        <div class="toggle"><span>Auto wrap</span><input id="autoWrap" type="checkbox" checked></div>
+      </div>
+
+      <div class="card">
+        <h3 class="h3-small">Position</h3>
+        <label>Position X <span id="xLbl">50%</span></label><input id="posX" type="range" min="0" max="100" value="50">
+        <label>Position Y <span id="yLbl">70%</span></label><input id="posY" type="range" min="0" max="100" value="70">
+        <div class="grid2">
+          <button class="btn" id="centerXBtn">Center X</button>
+          <button class="btn" id="centerYBtn">Center Y</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="h3-small">Background + FX</h3>
+        <div class="toggle"><span>Background</span><input id="bgOn" type="checkbox" checked></div>
+        <div class="grid3">
+          <div><label>Color</label><input id="bgColor" type="color" value="#000000"></div>
+          <div><label>Opacity</label><input id="bgOpacity" type="number" step="0.05" value="0.85"></div>
+          <div><label>Radius</label><input id="radius" type="number" value="8"></div>
+        </div>
+        <div class="grid2">
+          <div><label>Pad X</label><input id="padX" type="number" value="20"></div>
+          <div><label>Pad Y</label><input id="padY" type="number" value="10"></div>
+        </div>
+        <div><label>Animation</label><select id="anim" class="select"><option>none</option><option>fade</option><option>pop</option><option>highlight-word</option></select></div>
+      </div>
+
+      <div class="card">
+        <h3 class="h3-small">Subtitles</h3>
+        <div class="grid2">
+          <div><label>Max words/cue</label><input id="maxWords" type="number" value="7"></div>
+          <div><label>Max cue sec</label><input id="maxCueDur" type="number" step="0.1" value="3.2"></div>
+        </div>
+        <div id="cueList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
