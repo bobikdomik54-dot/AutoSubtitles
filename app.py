@@ -321,6 +321,12 @@ def index():
     return render_template("index.html")
 
 
+
+
+@app.get("/api/health")
+def api_health():
+    return jsonify({"ok": True, "app": APP_NAME})
+
 @app.post("/api/upload")
 def api_upload():
     if "file" not in request.files:

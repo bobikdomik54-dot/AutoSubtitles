@@ -7,6 +7,15 @@ function sec(v) { return Number(v || 0); }
 function fmt(t) { t = sec(t); const m = Math.floor(t / 60), s = (t % 60).toFixed(2).padStart(5, '0'); return `${m}:${s}`; }
 function hexToRgba(hex, op) { const h = hex.replace('#', ''); const i = parseInt(h, 16); const r = (i >> 16) & 255, g = (i >> 8) & 255, b = i & 255; return `rgba(${r},${g},${b},${clamp(op, 0, 1)})`; }
 
+async function api(url, options = {}) {
+  log(`Request: ${url}`);
+  const res = await fetch(url, options);
+  let data;
+  try { data = await res.json(); } catch { data = {}; }
+  if (!res.ok) throw new Error(data.error || `${res.status} ${res.statusText}`);
+  return data;
+}
+
 function styleFromUI() {
   return {
     fontFamily: $('font').value,
@@ -76,8 +85,19 @@ function renderCueList() {
     root.appendChild(div);
   });
   $('cueCount').textContent = `${state.cues.length} cues`;
-  root.querySelectorAll('input[data-k],textarea[data-k]').forEach(el => el.onchange = () => { const i = +el.dataset.i, k = el.dataset.k; state.cues[i][k] = k === 'text' ? el.value : Number(el.value); if (k !== 'text' && state.cues[i].end <= state.cues[i].start) state.cues[i].end = state.cues[i].start + .2; drawPreview($('video').currentTime || 0); });
-  root.querySelectorAll('button[data-a]').forEach(b => b.onclick = () => { const i = +b.dataset.i, a = b.dataset.a; if (a === 'split') splitCue(i); if (a === 'mergePrev' && i > 0) mergeCue(i - 1, i); if (a === 'mergeNext' && i < state.cues.length - 1) mergeCue(i, i + 1); renderCueList(); });
+  root.querySelectorAll('input[data-k],textarea[data-k]').forEach(el => el.onchange = () => {
+    const i = +el.dataset.i, k = el.dataset.k;
+    state.cues[i][k] = k === 'text' ? el.value : Number(el.value);
+    if (k !== 'text' && state.cues[i].end <= state.cues[i].start) state.cues[i].end = state.cues[i].start + .2;
+    drawPreview($('video').currentTime || 0);
+  });
+  root.querySelectorAll('button[data-a]').forEach(b => b.onclick = () => {
+    const i = +b.dataset.i, a = b.dataset.a;
+    if (a === 'split') splitCue(i);
+    if (a === 'mergePrev' && i > 0) mergeCue(i - 1, i);
+    if (a === 'mergeNext' && i < state.cues.length - 1) mergeCue(i, i + 1);
+    renderCueList();
+  });
 }
 function splitCue(i) { const c = state.cues[i]; const p = c.text.replace(/\n/g, ' ').split(/\s+/).filter(Boolean); if (p.length < 2) return; const m = Math.floor(p.length / 2), mid = (c.start + c.end) / 2; state.cues.splice(i, 1, autoWrapCue({ text: p.slice(0, m).join(' '), start: c.start, end: mid, words: [] }, 28), autoWrapCue({ text: p.slice(m).join(' '), start: mid, end: c.end, words: [] }, 28)); }
 function mergeCue(a, b) { const c1 = state.cues[a], c2 = state.cues[b]; state.cues.splice(a, 2, autoWrapCue({ text: (c1.text + ' ' + c2.text).replace(/\s+/g, ' ').trim(), start: Math.min(c1.start, c2.start), end: Math.max(c1.end, c2.end), words: [] }, 28)); }
@@ -96,10 +116,25 @@ function applyStyle() {
   v.style.textShadow = `${s.shadow}px ${s.shadow}px ${Math.max(2, s.shadow * 2)}px #000, 0 0 ${s.outlineWidth}px #000`;
   v.style.position = 'absolute'; v.style.left = `${s.posX}%`; v.style.top = `${s.posY}%`; v.style.transform = 'translate(-50%,-50%)';
   $('xLbl').textContent = `${s.posX}%`; $('yLbl').textContent = `${s.posY}%`;
+
+  if (!state.cues.length) {
+    v.textContent = 'Preview subtitle text';
+    v.style.opacity = '0.9';
+  }
 }
 
 function drawPreview(t) {
   const cue = state.cues.find(c => t >= c.start && t <= c.end); const v = $('subtitlePreview');
+  if (!cue) {
+    if (!state.cues.length) return;
+    v.style.opacity = '0'; v.textContent = '';
+    return;
+  }
+  let txt = cue.text;
+  if (state.style.animation === 'highlight-word' && cue.words?.length) {
+    const w = cue.words.find(x => t >= x.start && t <= x.end);
+    if (w) txt = cue.text.replace(w.text, `【${w.text}】`);
+  }
   if (!cue) { v.style.opacity = '0'; v.textContent = ''; return; }
   let txt = cue.text;
   if (state.style.animation === 'highlight-word' && cue.words?.length) { const w = cue.words.find(x => t >= x.start && t <= x.end); if (w) txt = cue.text.replace(w.text, `【${w.text}】`); }
@@ -110,7 +145,13 @@ function drawPreview(t) {
   if (state.style.animation === 'pop') v.style.scale = '1.06';
 }
 
-function setFile(file) { state.file = file; $('fileInfo').textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`; $('video').src = URL.createObjectURL(file); log('File selected. Upload to continue.'); }
+function setFile(file) {
+  state.file = file;
+  $('fileInfo').textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`;
+  $('video').src = URL.createObjectURL(file);
+  log('File selected. Click Upload.');
+}
+
 $('drop').onclick = () => $('fileInput').click();
 ['dragenter', 'dragover'].forEach(e => $('drop').addEventListener(e, (ev) => { ev.preventDefault(); $('drop').classList.add('drag'); }));
 ['dragleave', 'drop'].forEach(e => $('drop').addEventListener(e, (ev) => { ev.preventDefault(); $('drop').classList.remove('drag'); }));
@@ -119,36 +160,63 @@ $('fileInput').onchange = () => { const f = $('fileInput').files?.[0]; if (f) se
 $('newVideoBtn').onclick = () => $('fileInput').click();
 
 $('uploadBtn').onclick = async () => {
-  if (!state.file) return log('Choose file first');
-  const fd = new FormData(); fd.append('file', state.file);
-  log('Uploading...');
-  const r = await fetch('/api/upload', { method: 'POST', body: fd }); const d = await r.json();
-  if (!r.ok) return log('Upload error: ' + (d.error || r.status));
-  state.fileId = d.file_id; log(`Uploaded ID: ${state.fileId}`);
+  try {
+    if (!state.file) return log('Choose video file first');
+    const fd = new FormData(); fd.append('file', state.file);
+    const d = await api('/api/upload', { method: 'POST', body: fd });
+    state.fileId = d.file_id;
+    log(`Upload OK. file_id=${state.fileId}`);
+  } catch (e) {
+    log(`Upload error: ${e.message}`);
+  }
 };
 
 $('transcribeBtn').onclick = async () => {
-  if (!state.fileId) return log('Upload first');
-  log('Transcribing...');
-  const r = await fetch('/api/transcribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file_id: state.fileId, language: $('lang').value || undefined }) });
-  const d = await r.json();
-  if (!r.ok) return log('Transcribe error: ' + (d.error || r.status));
-  state.words = d.words || []; state.segments = d.segments || [];
-  const s = styleFromUI(); state.cues = groupWordsToCues(state.words, s.maxWords, s.maxCueDur);
-  renderCueList(); applyStyle(); log(`Done: ${state.words.length} words / ${state.cues.length} cues`);
+  try {
+    if (!state.fileId) return log('Upload before transcription');
+    const d = await api('/api/transcribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file_id: state.fileId, language: $('lang').value || undefined })
+    });
+    state.words = d.words || [];
+    state.segments = d.segments || [];
+    const s = styleFromUI();
+    state.cues = groupWordsToCues(state.words, s.maxWords, s.maxCueDur);
+    renderCueList();
+    applyStyle();
+    drawPreview(0);
+    log(`Transcribe OK: ${state.words.length} words, ${state.cues.length} cues`);
+  } catch (e) {
+    log(`Transcribe error: ${e.message}`);
+  }
 };
 
-$('applyStyleBtn').onclick = () => { state.cues = state.cues.map(c => autoWrapCue(c, 28)); applyStyle(); renderCueList(); log('Style applied'); };
+$('applyStyleBtn').onclick = () => {
+  state.cues = state.cues.map(c => autoWrapCue(c, 28));
+  applyStyle();
+  renderCueList();
+  drawPreview($('video').currentTime || 0);
+  log('Styles applied');
+};
 
 $('exportBtnTop').onclick = async () => {
-  if (!state.fileId || !state.cues.length) return log('Nothing to export');
-  if ($('exportMode').value === 'frontend') return exportFrontend();
-  log('Backend render...');
-  const r = await fetch('/api/render', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file_id: state.fileId, cues: state.cues, style: styleFromUI() }) });
-  const d = await r.json();
-  if (!r.ok) return log('Render error: ' + (d.error || r.status));
-  const a = document.createElement('a'); a.href = '/api/download/' + d.render_id; a.download = 'subtitled.mp4'; a.click();
-  log('Export done');
+  try {
+    if (!state.fileId || !state.cues.length) return log('No subtitles to export');
+    if ($('exportMode').value === 'frontend') return exportFrontend();
+    const d = await api('/api/render', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file_id: state.fileId, cues: state.cues, style: styleFromUI() })
+    });
+    const a = document.createElement('a');
+    a.href = '/api/download/' + d.render_id;
+    a.download = 'subtitled.mp4';
+    a.click();
+    log('Export OK');
+  } catch (e) {
+    log(`Export error: ${e.message}`);
+  }
 };
 
 async function exportFrontend() {
@@ -156,7 +224,10 @@ async function exportFrontend() {
   const video = $('video'); const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
   canvas.width = video.videoWidth || 1280; canvas.height = video.videoHeight || 720;
   const stream = canvas.captureStream(30); const chunks = [];
-  const rec = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' }); rec.ondataavailable = e => e.data.size && chunks.push(e.data); rec.start();
+  const rec = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+  rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+  rec.start();
+
   const old = video.currentTime; video.currentTime = 0; await video.play();
   await new Promise(res => {
     const draw = () => {
@@ -177,18 +248,34 @@ async function exportFrontend() {
     };
     draw();
   });
-  rec.stop(); await new Promise(r => rec.onstop = r); video.pause(); video.currentTime = old;
+
+  rec.stop();
+  await new Promise(r => rec.onstop = r);
+  video.pause();
+  video.currentTime = old;
   const blob = new Blob(chunks, { type: 'video/webm' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'subtitled-frontend.webm'; a.click();
-  log('Frontend export done');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'subtitled-frontend.webm';
+  a.click();
+  log('Frontend export OK');
 }
 
 $('video').addEventListener('timeupdate', () => drawPreview($('video').currentTime || 0));
 ['font', 'fontSize', 'bold', 'italic', 'lineHeight', 'color', 'outlineWidth', 'shadow', 'bgOn', 'bgColor', 'bgOpacity', 'radius', 'padX', 'padY', 'posX', 'posY', 'anim', 'maxWords', 'maxCueDur', 'autoWrap', 'punct']
-  .forEach(id => $(id).addEventListener('input', applyStyle));
+  .forEach(id => $(id).addEventListener('input', () => { applyStyle(); drawPreview($('video').currentTime || 0); }));
 $('centerXBtn').onclick = () => { $('posX').value = 50; applyStyle(); };
 $('centerYBtn').onclick = () => { $('posY').value = 70; applyStyle(); };
 document.querySelectorAll('.chip').forEach(ch => ch.onclick = () => setPreset(ch.dataset.preset));
+
+(async () => {
+  try {
+    await api('/api/health');
+    log('Server connected. Ready.');
+  } catch (e) {
+    log(`Server not reachable: ${e.message}`);
+  }
+})();
 
 setPreset('Classic');
 applyStyle();
