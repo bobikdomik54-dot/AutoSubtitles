@@ -33,6 +33,14 @@ python app.py
 
 После запуска откройте `http://localhost:8000`.
 
+
+## Структура
+
+- `app.py` — весь backend (API + обработка ffmpeg/Groq + хранение файлов).
+- `frontend/templates/index.html` — HTML.
+- `frontend/static/style.css` — стили.
+- `frontend/static/app.js` — frontend-логика.
+
 ## API
 
 - `POST /api/upload` — принимает видео (form-data `file`), сохраняет временно, валидирует размер/длительность.
